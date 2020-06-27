@@ -1,0 +1,7 @@
+*.aux
+*.tex
+*.pdf
+
+*.un~
+*.swp~
+*.log
