@@ -53,24 +53,6 @@ def convertLeadingSpaces(line, ignored):
         line = "\\hspace{8pt} " + line
     print(line)
     return line
-        
-#printListWithArrow(A, N)
-'''def nextFibonacci(A, n):
-    if n == 0 or n == 1:
-        return 1
-    return A[n-1] + A[n-2]
-    def fibonacci(N):
-    A = [0]*N
-    print(A)
-    for i in range(N):
-        A[i] = nextFibonacci(A, i)
-        printListWithArrow(A, i)
-    return A 
-N = 5
-A = [0]*N
-print(inspect.getsource(printFunc))
-'''
-
 
 def fib(n):
     l = []
@@ -163,11 +145,15 @@ def vis(myFun):
                 s += '};\n'
 
                 f.write(s)
+
+                # Storing the for loop box so that later nodes can loop back
+                prevFor = newBox
+
                 frC += 1
-                print(loopLength)
 
                 # This line makes the searcher skip lines within the for loop,
-                # but I thought it was difficult to read the resulting chart
+                # but I thought it was more difficult to read the resulting chart,
+                # so I commented it out:
                 #i += loopLength - 1
 
                 #\draw arrow from last box to new box
@@ -191,8 +177,9 @@ def vis(myFun):
                 f.write(s)
                   
 
-                # now join back to whence you came
-                f.write('\draw [arrow] ('+ newBoxT + ') to [bend right] (' + prevBox + ');\n')
+                # now join back to the previous for loop
+
+                f.write('\draw [arrow] ('+ newBoxT + ') to [bend right] (' + prevFor + ');\n')
                 f.write('\draw [arrow] ('+newBox+') -- node {True}('+newBoxT+');\n')
                
                 # We now know that we can skip these lines as they are dealt with 
@@ -219,8 +206,8 @@ def vis(myFun):
                     # now we need to skip past all of the elif stuff
                     i += 1
                     
-                    # loop back to where you came.
-                    f.write('\draw [arrow] (' + newBoxF + ') to [bend left] (' + prevBox + ');\n') 
+                    # loop back to the prevoius for loop
+                    f.write('\draw [arrow] (' + newBoxF + ') to [bend left] (' + prevFor + ');\n') 
 
             #update prevBox
             prevBox = newBox

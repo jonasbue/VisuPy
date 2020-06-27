@@ -20,6 +20,7 @@ def printListWithArrow(list, N):
 def iterateThroughList(list, N):
     for i in range(N):
         printListWithArrow(list, i)
+
 '''
 #printListWithArrow(A, N)
 def nextFibonacci(A, n):
