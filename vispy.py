@@ -51,6 +51,11 @@ def fib(n):
 
 #fib(10)
 
+def forSearch(myFun):
+    for line in inspect.getsourcelines(myFun)[0][1:]:
+        if line.find('for') != -1:
+            f.write('\\node (for) [process, below of=start]')
+            f.write('{' + line + '};\n')
 
 def vis(myFun):
     # open a new/clear tex
@@ -70,10 +75,8 @@ def vis(myFun):
 
         # Start  your flowchart
         f.write('\\begin{tikzpicture}[node distance=2cm]\n')
-        f.write('\\node (start) [startstop] {Start};\n')
-
-
-
+        f.write('\\node (start) [startstop]')
+        f.write('{' + inspect.getsourcelines(myFun)[0][0] + '};\n')
         f.write('\\end{tikzpicture}\n')
         f.write('\\end{document}\n')
     
