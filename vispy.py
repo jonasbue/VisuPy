@@ -4,22 +4,86 @@ import subprocess, os
 from sys import platform
 
 
+class CodeLine:
+    def __init__(self, id, contents, parent):
+        """Creates a new CodeLine object.
+        id is the line number in the function.
+        type can be: start, io, if, else, for, while, misc
+        contents is the string with the code for this line
+        """
 
-def printListWithArrow(content, N):
-    print(content)
-    print(" "*(3*N) + "^")
+        self.id = int(id)               # Line number
+        self.contents = str(contents.strip())
+        self.type = self.getType()
 
-def printFunc(foo):
-    lines = inspect.getsource(foo)
-    print(lines)
+        self.parent = parent if parent != -1 else self  # Parent box. Set to self if no parent (i.e. start)
+        self.makeChild()
 
-def printListWithArrow(list, N):
-    print(list)
-    print(" "*(3*N+1) + "^")
+        self.children = []              # List of children boxes
+        self.num_children = 0
 
-def iterateThroughList(list, N):
-    for i in range(N):
-        printListWithArrow(list, i)
+        self.orientation = "below"      # Can be changed to move relative position to parent box
+        self.offset = (0, 0)            # (x, y) offset from parent box. If (0, 0) use Latex default
+
+    def makeChild(self):
+        if self.parent != self:
+            self.parent.children.append(self)
+            self.parent.num_children += 1
+
+    def getType(self):
+        if self.contents.find("if") == 0 and self.contents[-1] == ":":
+            return "if"
+        elif self.contents.find("while") == 0 and self.contents[-1] == ":":
+            return "while"
+        elif self.contents.find("for") == 0 and self.contents[-1] == ":":
+            return "for"
+        elif self.contents == "else:":
+            return "else"
+        elif "=" in self.contents:
+            return "io"
+        else:
+            return "misc"
+
+    def drawBox(self):
+        if self.type == "if":
+            boxstyle = "decision"
+        elif self.type == "for":
+            boxstyle = "process"
+        elif self.type == "io":
+            boxstyle = "io"
+        elif self.type == "while":
+            boxstyle = "process"
+        elif self.type == "start":
+            boxstyle = "startstop"
+            return '\\node (box0) [startstop] {' + str(self.contents).rstrip() + '};\n'
+        else:
+            boxstyle = "process"
+
+        if self.parent != self:
+            pos = "{orientation} of= box{parent}".format(orientation=self.orientation, parent=self.parent.id)
+            if self.offset[0] != 0:
+                pos += ", xshift={shift}cm".format(shift=self.offset[0])
+            if self.offset[1] != 0:
+                pos += ", yshift={shift}cm".format(shift=self.offset[1])
+        else:
+            pos = ""
+
+        return '\\node (box{id}) [ {type} , {pos}] {code};\n'.format(id=self.id,
+                                                                     type=boxstyle,
+                                                                     pos=pos,
+                                                                     code="{" + self.contents + "}")
+
+    def drawArrows(self):
+        arrows = ""
+        for child in self.children:
+            # If the child is older than the parent (ie feedback)
+            # then the arrow takes a round shape
+            if self.id > child.id:
+                arrows += '\draw [arrow] (box{id}) to [bend left] (box{child});\n'.format(id=self.id, child=child.id)
+            else:
+                arrows += '\draw [arrow] (box{id}) -- (box{child});\n'.format(id=self.id, child=child.id)
+        return arrows
+
 
 def findIndentation(line):
     return len(line) - len(line.strip())
@@ -39,12 +103,31 @@ def findEndOfLoop(function, startLine, stopAtKeyword=False):
 
     while len(line) - len(line.lstrip()) > indentation and a < lastLineNumber:
         line = inspect.getsourcelines(function)[0][a]
-        if stopAtKeyword == True:
-            if line.find('if') != -1 or line.find('for') != -1:
+        if stopAtKeyword:
+            if "if" in line or "for" in line:
                 break
         numberOfLinesInLoop += 1
         a += 1
     return numberOfLinesInLoop
+
+
+def findEndOfNest(raw_code, startLine):
+    a = startLine + 1
+    lastLineNumber = len(raw_code)
+    numberOfLinesInLoop = 1
+
+    line = raw_code[startLine]
+    indentation = len(line) - len(line.lstrip())
+
+    # Number of leading spaces in the for loop declaration
+    line = raw_code[a]
+
+    while len(line) - len(line.lstrip()) > indentation and a < lastLineNumber:
+        line = raw_code[a]
+        numberOfLinesInLoop += 1
+        a += 1
+    return numberOfLinesInLoop
+
 
 def convertLeadingSpaces(line, ignored):
     n = (findIndentation(line) - ignored) // 4
@@ -54,25 +137,37 @@ def convertLeadingSpaces(line, ignored):
     print(line)
     return line
 
-def fib(n):
-    l = []
-    m = [1,2,3]
-    for i in range(n):
-        a = 1
-        if len(l) == 0 or len(l) == 1:
-            el = [0]
-        else:
-            el = l[i-1]+l[i-2]
-
-        l.append(el)
-    print(l)
-
-#fib(10)
+"""
+def drawFeedback(line, boxes):
+    end = findEndOfLoop(test, line.id) + line.id - 2
+    print(end)
+    boxes[end].children.append(line)
+    boxes[end].num_children += 1
 
 
-def vis(myFun):
-    # open a new/clear tex
-    with open('sometexfile.tex','w') as f:
+def drawExit(line):
+    end = findEndOfLoop(test, line.id) + line.id - 1
+    line.children.append(boxes[end])
+    line.num_children += 1
+"""
+
+def drawFeedback(line, boxes):
+    start = boxes[line.id]
+    end = findEndOfLoop(test, line.id) + line.id - 2
+    boxes[end].children = []
+    boxes[end].children.append(start)
+    boxes[end].num_children += 1
+
+def drawExit(line, boxes):
+    end = findEndOfLoop(test, line.id) + line.id - 1
+    boxes[end].offset = (-5,0)
+    line.children.append(boxes[end])
+    line.num_children += 1
+
+
+
+def write_latex(code):
+    with open('sometexfile.tex', 'w') as f:
         f.write('\\documentclass{article}\n')
         f.write('\\usepackage{tikz}\n \\usetikzlibrary{shapes.geometric, arrows,arrows.meta, positioning, fit}\n')
 
@@ -88,169 +183,127 @@ def vis(myFun):
 
         # Start  your flowchart
         f.write('\\begin{tikzpicture}[node distance = 2cm]\n')
-        funcName = inspect.getsourcelines(myFun)[0][0]
-        #        print(funcName)
-        
-        # Start flow chart with name of function
-        s = '\\node (start) [startstop] {' + str(funcName).rstrip() + '};\n'
-        f.write(s)
 
-        # Need to keep track of previous box
-        prevBox = 'start'
-        newBox = None
-        # Need to keep track of how many io box to call correctly
-        ioC = 0
-        frC = 0
-        ifC = 0
-        i = 1 
-
-        numberOfLines = len(inspect.getsourcelines(myFun)[0])
-
-        # Go line by line through the function
-        i = 1
-        while i < numberOfLines:
-            line = inspect.getsourcelines(myFun)[0][i]
-
-            # If this is an initialization line
-            if line.count('=') == 1:
-
-                # new box
-                newBox = 'in' + str(ioC)
-
-                # str = make node + call what is in line
-                s = '\\node (' + newBox + ') [io, below of=' + prevBox +'] {' + line + '};\n'
-                f.write(s)
-
-                #\draw arrow from last box to new box
-                f.write('\draw [arrow] ('+prevBox+') -- ('+newBox+');\n')
-                #update prevBox
-                prevBox = newBox
-
-                # increase number of io boxes
-                ioC += 1
-
-            # If a for loop is found
-            if line.find('for') != -1:
-
-                newBox = 'for' + str(frC)
-
-                loopLength = findEndOfLoop(myFun, i, stopAtKeyword=True)
-                loopIndentation = findIndentation(line)
-                loopLines = ''
-
-                s = '\\node (' + newBox + ') [process, below of=' + prevBox +'] {'
-                for j in range(loopLength):
-                    s += "\n" + convertLeadingSpaces(inspect.getsourcelines(myFun)[0][i+j], loopIndentation)
-
-                s += '};\n'
-
-                f.write(s)
-
-                # Storing the for loop box so that later nodes can loop back
-                prevFor = newBox
-
-                frC += 1
-
-                # This line makes the searcher skip lines within the for loop,
-                # but I thought it was more difficult to read the resulting chart,
-                # so I commented it out:
-                #i += loopLength - 1
-
-                #\draw arrow from last box to new box
-                f.write('\draw [arrow] ('+prevBox+') -- ('+newBox+');\n')
-                #update prevBox
-                prevBox = newBox
-
-
-
-            if line.find('if') != -1:
-                newBox = 'if' + str(ifC)
-
-                s = '\\node (' + newBox + ') [decision, below of=' + prevBox + '] {' + line + '};\n'
-
-                # if True:
-                 
-                newBoxT = newBox + 'T'
-                sT = '\\node ('+ newBoxT + ') [process, below right=of ' + newBox + ']{'+ inspect.getsourcelines(myFun)[0][i+1]+'};\n'
-               
-                s = s + sT 
-                f.write(s)
-                  
-
-                # now join back to the previous for loop
-
-                f.write('\draw [arrow] ('+ newBoxT + ') to [bend right] (' + prevFor + ');\n')
-                f.write('\draw [arrow] ('+newBox+') -- node {True}('+newBoxT+');\n')
-               
-                # We now know that we can skip these lines as they are dealt with 
-                # i+1 is the content of the if statement
-                i+=2
-                ifC += 1
-
-                #\draw arrow from last box to new box
-                f.write('\draw [arrow] ('+prevBox+') to ('+newBox+');\n')
-
-
-                #Need to check if there are following elif statements
-                linearr = inspect.getsourcelines(myFun)[0]
-                print(linearr[i])
-                if linearr[i].find('elif') != -1 or linearr[i].find('else') != -1:
-                    # we have an else statement
-                    
-                    # if False
-                    newBoxF = newBox + 'F'
-                    sF = '\\node ('+ newBoxF + ') [process, below left=of ' + newBox + ']{'+ inspect.getsourcelines(myFun)[0][i+1]+'};\n'
-                    f.write(sF)
-                    f.write('\draw [arrow] ('+newBox+') -- node {elif}('+newBoxF+');\n')
-                    
-                    # now we need to skip past all of the elif stuff
-                    i += 1
-                    
-                    # loop back to the prevoius for loop
-                    f.write('\draw [arrow] (' + newBoxF + ') to [bend left] (' + prevFor + ');\n') 
-
-            #update prevBox
-            prevBox = newBox
-
-            i += 1
-            
-
-            '''
-                obj = eval(line.split("=", 1)[1])
-                #fstwrd = line.split()[0]
-                print(obj)
-                print(type(obj))
-'''
-
+        f.write(code)
 
         f.write('\\end{tikzpicture}\n')
         f.write('\\end{document}\n')
-    
 
-    # -interaction=batchmode
-    x = os.system("pdflatex ./sometexfile.tex")
-    if x != 0:
-        print('Exit-code not 0, check result!')
+
+def test():
+    x = 1
+    y = 0
+    for i in range(3):
+        y += x
+        y = 2**y
+        x *= y
+    z = x + y
+
+def test2():
+    x = 1
+    if x == 1:
+        y = 4
+        # oops
+        z = x + y
     else:
-        if platform == "linux" or platform == "linux2":
-            os.system('xdg-open sometexfile.pdf')
-            #os.system('xdg-open sometexfile.tex')
+        y = 0
 
-        elif platform == "darwin":
+        z = 0
+    z = z ** 2
+    print("Hello world")
 
-            os.system('open sometexfile.tex')
-            os.system('open sometexfile.pdf')
-        elif platfom == 'win32':
+    for i in range(3):
+        print(i)
+
+    print(i)
+
+    if z == 3:
+        print("oh no")
+    else:
+        print("oops")
+
+
+boxes = []
+raw_code = inspect.getsourcelines(test)[0]
+for i, line in enumerate(raw_code):
+    if line.find("#"):
+        line = line[:line.find("#")]
+        raw_code[i] = line
+    if line.strip() == "":
+        del raw_code[i]
+
+for i, line in enumerate(raw_code):
+    if i == 0:
+        parent = -1
+    else:
+        parent = boxes[i - 1]       # This assigns every line the parent of the line before it
+                                    # Parents are changed later on when constructs like loops/ifs are encountered
+
+    boxes.append(CodeLine(i, line, parent))
+
+"""
+for box in boxes:
+    if box.type == "for":
+        drawFeedback(box, boxes)
+"""
+
+for i in range(len(boxes)):
+    if boxes[i].type == "for" or boxes[i].type == "while":
+        boxes[i+1].offset = (5,2)
+        drawFeedback(boxes[i], boxes)
+        drawExit(boxes[i], boxes)
+
+
+for i, box in enumerate(boxes):
+    # Check if a box is an if statement
+    print(box.type)
+    if box.type == "if":
+        length_if = findEndOfNest(raw_code, i) - 1
+
+        try:
+            # See if there is an else statement, and set this as a new branch of the original if block
+            if boxes[i + length_if].type == "else":
+                length_else = findEndOfNest(raw_code, i + length_if) - 1
+
+                try:
+                    # Sets child of last line of if statement to line after end of else statement
+                    boxes[i + length_if - 1].children = [boxes[i + length_if + length_else]]
+                except IndexError:
+                    # If there is no more code after the else statement
+                    boxes[i + length_if - 1].children = []
+
+                # Set parent of box after else to if box
+                boxes[i + length_if + 1].parent = box
+                boxes[i + length_if + 1].makeChild()
+                boxes[i + length_if + 1].orientation = "right"
+                boxes[i + length_if + 1].offset = (3, 0)
+
+                # Destroy else box so it isn't drawn
+                del boxes[i + length_if]
+
+        except IndexError:
             pass
 
+string = ""
 
-    '''
-    for line in inspect.getsourcelines(myFun)[0][0]:
-        # returns -1 if there is no = sign
-        if line.count('=') == 1:
-            obj = eval(line.split("=", 1)[1])
-            #fstwrd = line.split()[0]
-            print(obj)
-            print(type(obj))
-'''
-vis(fib)
+for box in boxes:
+    string += box.drawBox()
+
+for box in boxes:
+    string += box.drawArrows()
+
+write_latex(string)
+
+x = os.system("pdflatex ./sometexfile.tex")
+if x != 0:
+    print('Exit-code not 0, check result!')
+else:
+    if platform == "linux" or platform == "linux2":
+        os.system('xdg-open sometexfile.pdf')
+
+    elif platform == "darwin":
+        os.system('open sometexfile.tex')
+        os.system('open sometexfile.pdf')
+
+    elif platform == 'win32':
+        os.system('start sometexfile.pdf')
