@@ -137,7 +137,6 @@ def convertLeadingSpaces(line, ignored):
     print(line)
     return line
 
-
 def drawFeedback(line, boxes):
     start = boxes[line.id]
     end = findEndOfLoop(test, line.id) + line.id - 2
@@ -150,6 +149,7 @@ def drawExit(line, boxes):
     boxes[end].offset = (-5,0)
     line.children.append(boxes[end])
     line.num_children += 1
+
 
 
 def write_latex(code):
@@ -176,7 +176,7 @@ def write_latex(code):
         f.write('\\end{document}\n')
 
 
-def test1():
+def test2():
     x = 1
     y = 0
     for i in range(3):
@@ -189,33 +189,22 @@ def test():
     x = 1
     if x == 1:
         y = 4
+        # oops
         z = x + y
     else:
         y = 0
-
         z = 0
     z = z ** 2
+    print("Hello world")
+    for i in range(3):
+        print(i)
+    print(i)
 
-    for i in range(2):
-        print("hi")
-        x = 4
-
-    x = 3
-
+def test3():
     if z == 3:
         print("oh no")
     else:
         print("oops")
-
-    print("hello")
-
-
-def test3():
-    x = 2
-    if x == 2:
-        print(x)
-    else:
-        x = 2
 
 
 boxes = []
@@ -233,9 +222,14 @@ for i, line in enumerate(raw_code):
     else:
         parent = boxes[i - 1]       # This assigns every line the parent of the line before it
                                     # Parents are changed later on when constructs like loops/ifs are encountered
+
     boxes.append(CodeLine(i, line, parent))
 
-boxes[0].type = "start"
+"""
+for box in boxes:
+    if box.type == "for":
+        drawFeedback(box, boxes)
+"""
 
 for i in range(len(boxes)):
     if boxes[i].type == "for" or boxes[i].type == "while":
@@ -243,12 +237,10 @@ for i in range(len(boxes)):
         drawFeedback(boxes[i], boxes)
         drawExit(boxes[i], boxes)
 
-print("\n\n\n")
 
-else_box_indexes = []
 for i, box in enumerate(boxes):
-    print(box.type)
     # Check if a box is an if statement
+    print(box.type)
     if box.type == "if":
         length_if = findEndOfNest(raw_code, i) - 1
 
@@ -270,13 +262,11 @@ for i, box in enumerate(boxes):
                 boxes[i + length_if + 1].orientation = "right"
                 boxes[i + length_if + 1].offset = (3, 0)
 
-                else_box_indexes.append(i + length_if)
+                # Destroy else box so it isn't drawn
+                del boxes[i + length_if]
 
         except IndexError:
             pass
-"""BUG - if there is not another line of code at the end of an else then an extra arrow is drawn"""
-
-boxes = [box for i, box in enumerate(boxes) if i not in else_box_indexes]
 
 string = ""
 
