@@ -1,17 +1,31 @@
 import inspect
 
-def printListWithArrow(content, N):
-    print(content)
-    print(" "*(3*N) + "^")
-
-
-A = [1,2,3,4,5,6,7]
-N = 3
-
-printListWithArrow(A, N)
-
 def printFunc(foo):
     lines = inspect.getsource(foo)
     print(lines)
 
-printFunc(printListWithArrow)
+def printListWithArrow(list, N):
+    print(list)
+    print(" "*(3*N+1) + "^")
+
+def iterateThroughList(list, N):
+    for i in range(N):
+        printListWithArrow(list, i)
+
+def nextFibonacci(A, n):
+    if n == 0 or n == 1:
+        return 1
+    return A[n-1] + A[n-2]
+
+def fibonacci(N):
+    A = [0]*N
+    print(A)
+    for i in range(N):
+        A[i] = nextFibonacci(A, i)
+        printListWithArrow(A, i)
+    return A 
+
+N = 5
+A = [0]*N
+
+A = fibonacci(N)
