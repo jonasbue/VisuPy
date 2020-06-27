@@ -1,6 +1,8 @@
 import inspect
 import string
 import subprocess, os
+from sys import platform
+
 
 
 def printListWithArrow(content, N):
@@ -140,8 +142,14 @@ def vis(myFun):
     if x != 0:
         print('Exit-code not 0, check result!')
     else:
-        os.system('open sometexfile.tex')
-        os.system('open sometexfile.pdf')
+        if platform == "linux" or platform == "linux2":
+            os.system('xdg-open sometexfile.pdf')
+            #os.system('xdg-open sometexfile.tex')
+
+        elif platform == "darwin":
+
+            os.system('open sometexfile.tex')
+            os.system('open sometexfile.pdf')
 
 
     '''
