@@ -137,20 +137,6 @@ def convertLeadingSpaces(line, ignored):
     print(line)
     return line
 
-"""
-def drawFeedback(line, boxes):
-    end = findEndOfLoop(test, line.id) + line.id - 2
-    print(end)
-    boxes[end].children.append(line)
-    boxes[end].num_children += 1
-
-
-def drawExit(line):
-    end = findEndOfLoop(test, line.id) + line.id - 1
-    line.children.append(boxes[end])
-    line.num_children += 1
-"""
-
 def drawFeedback(line, boxes):
     start = boxes[line.id]
     end = findEndOfLoop(test, line.id) + line.id - 2
@@ -190,7 +176,7 @@ def write_latex(code):
         f.write('\\end{document}\n')
 
 
-def test():
+def test2():
     x = 1
     y = 0
     for i in range(3):
@@ -199,7 +185,7 @@ def test():
         x *= y
     z = x + y
 
-def test2():
+def test():
     x = 1
     if x == 1:
         y = 4
@@ -207,16 +193,14 @@ def test2():
         z = x + y
     else:
         y = 0
-
         z = 0
     z = z ** 2
     print("Hello world")
-
     for i in range(3):
         print(i)
-
     print(i)
 
+def test3():
     if z == 3:
         print("oh no")
     else:
