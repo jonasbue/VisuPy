@@ -167,20 +167,25 @@ def drawFeedback(line, boxes, function):
     boxes[end].children.append(line)
     boxes[end].num_children = 1
 
+
 def drawExit(line, boxes, function):
     end = findEndOfLoop(function, line.id) + line.id - 1
     line.children.append(boxes[end])
     line.num_children += 1
+    adjustForLength(line, boxes, function) 
 
+
+def adjustForLength(line, boxes, function):
     # Ajust the offset of first box after the for loop,
     # according to the length of the for loop
+    end = findEndOfLoop(function, line.id) + line.id - 1
     lengthOfFor = findEndOfLoop(function, line.id) - 3
     for box in boxes:
         if box.id > line.id and box.id < findEndOfLoop(function, line.id):
-            print("It did. Box is", box.id)
             lengthOfFor -= box.id
             break
     boxes[end].offset = (-4, -lengthOfFor)
+
 
 def placeForLoop(boxes, function):
     for i in range(len(boxes)):
@@ -189,9 +194,10 @@ def placeForLoop(boxes, function):
             drawFeedback(boxes[i], boxes, function)
             drawExit(boxes[i], boxes, function)
 
+
 def write_latex(code, filename):
     with open(filename+'.tex', 'w') as f:
-        f.write('\\documentclass{article}\n \\usepackage[a3paper]{geometry}\n\\pagestyle{empty}\n')
+        f.write('\\documentclass{article}\n \\usepackage[a2paper]{geometry}\n\\pagestyle{empty}\n')
         f.write('\\usepackage{tikz}\n \\usetikzlibrary{shapes.geometric, arrows,arrows.meta, positioning, fit}\n')
 
         # tikz styles
@@ -212,6 +218,7 @@ def write_latex(code, filename):
         f.write('\\end{tikzpicture}\n')
         f.write('\\end{document}\n')
 
+
 def printOGCode(code):
     print('\nOriginal Code: \n===========\n')
     print(code)
@@ -219,7 +226,6 @@ def printOGCode(code):
 
 # BUG: If there is a line break anywhere before a for loop,
 # then the for loop will not render properly
-
 
 
 def visualize(function, filename='visualize', quiet=True):
@@ -252,7 +258,6 @@ def visualize(function, filename='visualize', quiet=True):
 
         #maybe generalize using id?
         if box.type=='for':
-
             length_for = findEndOfNest(raw_code, i)  # line in for loop inc. def.
             # for lines in for loop (exc. def)
             for frline in range(i,  length_for+i):
@@ -263,18 +268,12 @@ def visualize(function, filename='visualize', quiet=True):
             boxes[i].makeChild()
             boxes[i].children.extend([boxes[frline+1]])
 
-
-
-
         # Check if a box is an if statement
         if box.type == "if":
-
-
             #print(boxes[i+1].contents)
             # first line coming out of an if, label arrow true
             boxes[i+1].childOfIf = 'True'
             length_if = findEndOfNest(raw_code, i)
-
 
             if boxes[i].flagInLoop.get('for') is not None and box.flagInLoop.get('for', None) is not 'head':
                 retBox = box.flagInLoop.get('for')
@@ -293,7 +292,9 @@ def visualize(function, filename='visualize', quiet=True):
                         boxes[i + length_if - 1].children = [boxes[retBox]]
                     else:
                         boxes[i + length_if - 1].children = [boxes[i + length_if + length_else]]
-                    boxes[i + length_if + length_else -1].children[0].offset = (-5, 2*(length_else - length_if - 1))
+                    
+                    # To position boxes that follow if/else statements:
+                    #boxes[i + length_if + length_else -1].children[0].offset = (-5, 2*(length_else - length_if - 1))
 
                     # Set parent of box after else to if box
                     boxes[i + length_if + 1].parent = boxes[i]
