@@ -23,10 +23,13 @@ def fibonacci(n):
     return L
 
 
-def hardFunction():
-    x = 1
+def hardFunction(x):
+    s = 10
+    u = 0
+    a = 10
+    y = 1 
     if x == 1:
-        y = 4
+        y += 4
         z = x + y
     else:
         y = 0
@@ -34,19 +37,20 @@ def hardFunction():
     z = z ** 2
     if y == 2:
         print('y is 2')
-    print('The end')
+    print('Code is so clear!')
     for i in range(2):
-        print("hi")
-        x = 4
+        print("I'm helping on line"+ str(i))
+        x = 4+i
     x = 3
 
-    if z == 3:
-        print("oh no")
-        print("1")
+    if z == -1:
+        print("How did that happen")
+        print("z is bad!")
     else:
-        print("oops")
+        print("phew")
 
-    print('end')
+    print('I understand my code')
+
 
 visupy.visualize(basicFunction, 'basic')
 visupy.visualize(fibonacci, 'fibonacci')
