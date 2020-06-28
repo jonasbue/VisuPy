@@ -137,6 +137,7 @@ def convertLeadingSpaces(line, ignored):
     print(line)
     return line
 
+
 def drawFeedback(line, boxes):
     start = boxes[line.id]
     end = findEndOfLoop(test, line.id) + line.id - 2
@@ -150,12 +151,21 @@ def drawExit(line, boxes):
     line.children.append(boxes[end])
     line.num_children += 1
 
-
+def placeForLoop(boxes):
+    for i in range(len(boxes)):
+        if boxes[i].type == "for" or boxes[i].type == "while":
+            boxes[i+1].offset = (5,2)
+            drawFeedback(boxes[i], boxes)
+            drawExit(boxes[i], boxes)
 
 def write_latex(code):
     with open('sometexfile.tex', 'w') as f:
         f.write('\\documentclass{article}\n')
         f.write('\\usepackage{tikz}\n \\usetikzlibrary{shapes.geometric, arrows,arrows.meta, positioning, fit}\n')
+
+        # This package lets us adjust margins
+        f.write('\\usepackage[top=1.5cm, bottom=1.5cm]{geometry}')
+
 
         # tikz styles
         f.write('\\tikzstyle{startstop} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm,text centered, draw=black, fill=red!30]\n')
@@ -176,39 +186,59 @@ def write_latex(code):
         f.write('\\end{document}\n')
 
 
-def test2():
+def test():
     x = 1
     y = 0
     for i in range(3):
         y += x
         y = 2**y
         x *= y
+    if x == 1:
+        a = 4
+    else:
+        a = 2
     z = x + y
+    return z
 
-def test():
+def test1():
     x = 1
     if x == 1:
         y = 4
-        # oops
-        z = x + y
+        x = x**4
+        x -= 5
     else:
         y = 0
-        z = 0
+        x += 1
     z = z ** 2
-    print("Hello world")
-    for i in range(3):
-        print(i)
-    print(i)
 
-def test3():
+    for i in range(2):
+        x = 4
+        x += 2
+
+    x = 3
+
     if z == 3:
         print("oh no")
     else:
         print("oops")
 
+    print("hello")
+    print("world")
+
+
+def test3():
+    x = 2
+    if x == 2:
+        print(x)
+    else:
+        x = 2
+        x *= 4
+    return x
+
 
 boxes = []
-raw_code = inspect.getsourcelines(test)[0]
+raw_code = inspect.getsourcelines(test1)[0]
+
 for i, line in enumerate(raw_code):
     if line.find("#"):
         line = line[:line.find("#")]
@@ -222,25 +252,18 @@ for i, line in enumerate(raw_code):
     else:
         parent = boxes[i - 1]       # This assigns every line the parent of the line before it
                                     # Parents are changed later on when constructs like loops/ifs are encountered
-
     boxes.append(CodeLine(i, line, parent))
 
-"""
-for box in boxes:
-    if box.type == "for":
-        drawFeedback(box, boxes)
-"""
+boxes[0].type = "start"
 
-for i in range(len(boxes)):
-    if boxes[i].type == "for" or boxes[i].type == "while":
-        boxes[i+1].offset = (5,2)
-        drawFeedback(boxes[i], boxes)
-        drawExit(boxes[i], boxes)
+print("\n\n\n")
 
+placeForLoop(boxes)
 
+else_box_indexes = []
 for i, box in enumerate(boxes):
-    # Check if a box is an if statement
     print(box.type)
+    # Check if a box is an if statement
     if box.type == "if":
         length_if = findEndOfNest(raw_code, i) - 1
 
@@ -252,6 +275,9 @@ for i, box in enumerate(boxes):
                 try:
                     # Sets child of last line of if statement to line after end of else statement
                     boxes[i + length_if - 1].children = [boxes[i + length_if + length_else]]
+                    boxes[i + length_if + length_else].children[0].offset = (-5, length_else - length_if - 1)
+
+
                 except IndexError:
                     # If there is no more code after the else statement
                     boxes[i + length_if - 1].children = []
@@ -262,11 +288,13 @@ for i, box in enumerate(boxes):
                 boxes[i + length_if + 1].orientation = "right"
                 boxes[i + length_if + 1].offset = (3, 0)
 
-                # Destroy else box so it isn't drawn
-                del boxes[i + length_if]
+                else_box_indexes.append(i + length_if)
 
         except IndexError:
             pass
+"""BUG - if there is not another line of code at the end of an else then an extra arrow is drawn"""
+
+boxes = [box for i, box in enumerate(boxes) if i not in else_box_indexes]
 
 string = ""
 
