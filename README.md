@@ -12,3 +12,5 @@ Then, in your Python script, run the following to visualize your function in a L
 import visupy
 
 visupy.visualize(function, 'filename')
+
+Examples are found in the test_functions.py file.
