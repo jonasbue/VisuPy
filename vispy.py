@@ -5,7 +5,7 @@ from sys import platform
 
 
 class CodeLine:
-    def __init__(self, id, contents, parent):
+    def __init__(self, id, contents, parent, flagInLoop=dict()):
         """Creates a new CodeLine object.
         id is the line number in the function.
         type can be: start, io, if, else, for, while, misc
@@ -14,7 +14,11 @@ class CodeLine:
 
         self.id = int(id)               # Line number
         self.contents = str(contents.strip())
+
+        self.flagInLoop = flagInLoop     # are we in a if loop - need to give options of if and no else.
         self.type = self.getType()
+        # We want to check if the parent was a if loop
+
 
         self.parent = parent if parent != -1 else self  # Parent box. Set to self if no parent (i.e. start)
         self.makeChild()
@@ -32,13 +36,25 @@ class CodeLine:
         if self.parent != self:
             self.parent.children.append(self)
             self.parent.num_children += 1
+        '''
+        # Also check if we are in a if path
+        if self.parent.flagInLoop:
+            flagInLoop = self.parent.flagInLoop 
+            if flagInLoop.get('if') == 'start' or flagInLoop.get('if') == 'body':
+                self.flagInLoop.update({'if': 'body'})
+            elif flagInLoop.get('if') == 'final':
+                self.flagInLoop = dict()
+        '''
 
     def getType(self):
         if self.contents.find("if") == 0 and self.contents[-1] == ":":
+            #self.flagInLoop.update({'if':'start'})
             return "if"
         elif self.contents.find("while") == 0 and self.contents[-1] == ":":
             return "while"
         elif self.contents.find("for") == 0 and self.contents[-1] == ":":
+            self.flagInLoop.update({'for':'head'})
+            print(self.contents)
             return "for"
         elif self.contents == "else:":
             return "else"
@@ -85,7 +101,7 @@ class CodeLine:
         for child in self.children:
             # If the child is older than the parent (ie feedback)
             # then the arrow takes a round shape
-            if child.childOfIf:
+            if child.childOfIf and self.type== 'if':
 
                 anchor = '[anchor='
                 if child.orientation == 'below':
@@ -151,7 +167,7 @@ def convertLeadingSpaces(line, ignored):
     return line
 
 
-def drawFeedback(line, boxes, fucntion):
+def drawFeedback(line, boxes, function):
     end = findEndOfLoop(function, line.id) + line.id - 2
     boxes[end].children = []
     boxes[end].children.append(line)
@@ -172,7 +188,7 @@ def placeForLoop(boxes, function):
 
 def write_latex(code):
     with open('sometexfile.tex', 'w') as f:
-        f.write('\\documentclass{article}\n')
+        f.write('\\documentclass{article}\n \\usepackage[a3paper]{geometry}\n\\pagestyle{empty}\n')
         f.write('\\usepackage{tikz}\n \\usetikzlibrary{shapes.geometric, arrows,arrows.meta, positioning, fit}\n')
 
         # tikz styles
@@ -193,139 +209,149 @@ def write_latex(code):
         f.write('\\end{tikzpicture}\n')
         f.write('\\end{document}\n')
 
-
+def printOGCode(code):
+    print('\nOriginal Code: \n===========\n')
+    print(code)
+    print('===========\n')
 
 # BUG: If there is a line break anywhere before a for loop,
 # then the for loop will not render properly
-def test1():
-    x = 1
 
-    y = 0
-    if x==1:
-        print("hei")
-        x = 4
+
+
+def visualize(function, quiet=True):
+    boxes = []
+    raw_code = inspect.getsourcelines(function)[0]
+    printOGCode(inspect.getsource(function))
+    raw_code.append("END")
+
+    for i, line in enumerate(raw_code):
+        if line.strip() == "":
+            del raw_code[i]
+
+    for i, line in enumerate(raw_code):
+        if i == 0:
+            parent = -1
+        else:
+            parent = boxes[i - 1]       # This assigns every line the parent of the line before it
+                                        # Parfunctionents are changed later on when constructs like loops/ifs are encountered
+        boxes.append(CodeLine(i, line, parent))
+
+    boxes[0].type = "start"
+
+
+    placeForLoop(boxes, function)
+
+    else_box_indexes = []
+    for i, box in enumerate(boxes):
+        '''
+        print('000000')
+        print(box.flagInLoop.get('for'))
+        print(box.contents)
+'''
+        # Line must know they are in a for loop
+        # After for loop circle back to for init and exit
+
+        #maybe generalize using id?
+        if box.type=='for':
+
+            length_for = findEndOfNest(raw_code, i)  # line in for loop inc. def.
+            #print(box.contents)
+            print(length_for)
+            # for lines in for loop (exc. def)
+            for frline in range(i,  length_for+i):
+                boxes[frline].flagInLoop.update({'for':i})
+                #print(boxes[frline].contents)
+            # so frline+1 should be where we exit the for loop
+            boxes[frline+1].parent = boxes[i]
+            boxes[i].makeChild()
+            boxes[i].children.extend([boxes[frline+1]])
+
+
+
+
+        # Check if a box is an if statement
+        if box.type == "if":
+
+
+            #print(boxes[i+1].contents)
+            # first line coming out of an if, label arrow true
+            boxes[i+1].childOfIf = 'True'
+            length_if = findEndOfNest(raw_code, i)
+
+            #print(boxes[16].contents) 
+            #print(boxes[16].flagInLoop)
+
+            if boxes[i].flagInLoop.get('for') is not None and box.flagInLoop.get('for', None) is not 'head':
+                retBox = box.flagInLoop.get('for')
+                print(box.type)
+                '''print(retBox)
+                print('LLLL')
+                print(i)'''
+            else:
+                retBox = None  
+            try:
+                # See if there is an else statement, and set this as a new branch of the original if block
+                if boxes[i + length_if].type == "else":
+
+                    # you are the else child from an if
+                    boxes[i + length_if + 1].childOfIf =  'Else'
+                    length_else = findEndOfNest(raw_code, i + length_if)
+                    
+                    # Sets child of last line of if statement to line after end of else statement
+                    if retBox is not None:
+                        boxes[i + length_if - 1].children = [boxes[retBox]]
+                    else:
+                        boxes[i + length_if - 1].children = [boxes[i + length_if + length_else]]
+
+                    #boxes[i + length_if + length_else].children[0].offset = (-5, length_else - length_if - 1)
+
+                    # Set parent of box after else to if box
+                    boxes[i + length_if + 1].parent = boxes[i]
+                    boxes[i + length_if + 1].makeChild()
+                    boxes[i + length_if + 1].orientation = "right"
+                    boxes[i + length_if + 1].offset = (3, 0)
+
+                    else_box_indexes.append(i + length_if)
+                else: # must be a true
+                    # end the if path so true/false ends at the same place
+                    boxes[i+length_if].parent = boxes[i]
+                    boxes[i].makeChild()
+                    boxes[i].children.extend([boxes[i+length_if]])
+
+                    boxes[i+length_if].offset = (4,0)
+                    
+                    boxes[i+length_if].childOfIf = 'False'
+            except IndexError:
+                pass
+
+    # D
+    boxes = [box for i, box in enumerate(boxes) if i not in else_box_indexes]
+
+    string = ""
+
+    for box in boxes:
+        string += box.drawBox()
+
+    for box in boxes:
+        string += box.drawArrows()
+
+    write_latex(string)
+    s= "pdflatex ./sometexfile.tex"
+    if quiet == True:
+        s = "pdflatex -interaction=batchmode  ./sometexfile.tex"
+    x = os.system(s)
+    if x != 0:
+        print('Exit-code not 0, check result!')
     else:
-        print("ha det bra")
-        t = 3
-    z = 1
-    for i in range(3):
-        y += x
-        y = 2**y
-        r = 1
-    z = x + y
-    if 3==4:
-        x,y = y,x
-    else:
-        x += 1
-    y -= 2
+        if platform == "linux" or platform == "linux2":
+            os.system('xdg-open sometexfile.pdf')
 
-def test():
-    x = 1
-    if x == 1:
-        y = 4
-        z = x + y
-    else:
-        y = 0
-        z = 0
-    z = z ** 2
-    for i in range(2):
-        print("hi")
-        x = 4
-    x = 3
+        elif platform == "darwin":
+            #os.system('open sometexfile.tex')
+            os.system('open sometexfile.pdf')
 
-    if z == 3:
-        print("oh no")
-        print("1")
-    else:
-        print("oops")
+        elif platform == 'win32':
+            os.system('start sometexfile.pdf')
 
-
-
-def test3():
-    x = 2
-    if x == 2:
-        print(x)
-    else:
-        x = 2
-
-function = test
-
-boxes = []
-raw_code = inspect.getsourcelines(function)[0]
-raw_code.append("END")
-
-for i, line in enumerate(raw_code):
-    if line.strip() == "":
-        del raw_code[i]
-
-for i, line in enumerate(raw_code):
-    if i == 0:
-        parent = -1
-    else:
-        parent = boxes[i - 1]       # This assigns every line the parent of the line before it
-                                    # Parfunctionents are changed later on when constructs like loops/ifs are encountered
-    boxes.append(CodeLine(i, line, parent))
-
-boxes[0].type = "start"
-
-
-placeForLoop(boxes, function)
-
-else_box_indexes = []
-for i, box in enumerate(boxes):
-    # Check if a box is an if statement
-    if box.type == "if":
-        # first line coming out of an if, label arrow true
-        boxes[i+1].childOfIf = 'True'
-        length_if = findEndOfNest(raw_code, i)
-
-        try:
-            # See if there is an else statement, and set this as a new branch of the original if block
-            if boxes[i + length_if].type == "else":
-
-                # you are the else child from an if
-                boxes[i + length_if + 1].childOfIf =  'Else'
-                length_else = findEndOfNest(raw_code, i + length_if)
-
-                # Sets child of last line of if statement to line after end of else statement
-                boxes[i + length_if - 1].children = [boxes[i + length_if + length_else]]
-                boxes[i + length_if + length_else].children[0].offset = (-5, length_else - length_if - 1)
-
-                # Set parent of box after else to if box
-                boxes[i + length_if + 1].parent = box
-                boxes[i + length_if + 1].makeChild()
-                boxes[i + length_if + 1].orientation = "right"
-                boxes[i + length_if + 1].offset = (3, 0)
-
-                else_box_indexes.append(i + length_if)
-
-        except IndexError:
-            pass
-
-# D
-boxes = [box for i, box in enumerate(boxes) if i not in else_box_indexes]
-
-string = ""
-
-for box in boxes:
-    string += box.drawBox()
-
-for box in boxes:
-    string += box.drawArrows()
-
-write_latex(string)
-
-x = os.system("pdflatex ./sometexfile.tex")
-if x != 0:
-    print('Exit-code not 0, check result!')
-else:
-    if platform == "linux" or platform == "linux2":
-        os.system('xdg-open sometexfile.pdf')
-
-    elif platform == "darwin":
-        #os.system('open sometexfile.tex')
-        os.system('open sometexfile.pdf')
-
-    elif platform == 'win32':
-        os.system('start sometexfile.pdf')
 
