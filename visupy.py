@@ -171,7 +171,16 @@ def drawExit(line, boxes, function):
     end = findEndOfLoop(function, line.id) + line.id - 1
     line.children.append(boxes[end])
     line.num_children += 1
-    boxes[end].offset = (-5,0)
+
+    # Ajust the offset of first box after the for loop,
+    # according to the length of the for loop
+    lengthOfFor = findEndOfLoop(function, line.id) - 3
+    for box in boxes:
+        if box.id > line.id and box.id < findEndOfLoop(function, line.id):
+            print("It did. Box is", box.id)
+            lengthOfFor -= box.id
+            break
+    boxes[end].offset = (-4, -lengthOfFor)
 
 def placeForLoop(boxes, function):
     for i in range(len(boxes)):

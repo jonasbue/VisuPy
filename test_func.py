@@ -41,10 +41,38 @@ def fib(n):
         else:
             l.append(l[i-1]+ l[i-2])
             print('hello')
+        print(x)
+        print(x)
+        print(x)
+        print(x)
+        print(x)
+        print(x)
     print(l)
 
+def test1():
+    x = 1
+
+    y = 0
+    if x==1:
+        print("hei")
+        x = 4
+    else:
+        print("ha det bra")
+        t = 3
+        z = 1
+    for i in range(3):
+        y += x
+        y = 2**y
+        r = 1
+        z = x + y
+    if 3==4:
+        x,y = y,x
+    else:
+        x += 1
+        y -= 2 
 
 visupy.visualize(basicFunc, 'basic')
 visupy.visualize(fib, 'fib')
 visupy.visualize(hardFunc, 'hard')
+visupy.visualize(test1, 'test1')
 
