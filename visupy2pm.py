@@ -4,8 +4,44 @@ import subprocess, os
 from sys import platform
 
 
+def test():
+    x = 1
+    if x == 1:
+        y = 4
+        z = x + y
+    else:
+        y = 0
+        z = 0
+    z = z ** 2
+    if y == 2:
+        print('y is 2')
+    print('The end')
+    for i in range(2):
+        print("hi")
+        x = 4
+    x = 3
+
+    if z == 3:
+        print("oh no")
+        print("1")
+    else:
+        print("oops")
+
+    print('end')
+
+def fib(n):
+    l = []
+    for i in range(n):
+        if len(l) == 0 or len(l) == 1:
+            l.append(1)
+        else:
+            l.append(l[i-1]+ l[i-2])
+            print('hello')
+    print(l)
+
+
 class CodeLine:
-    def __init__(self, id, contents, parent, flagInLoop=dict()):
+    def __init__(self, id, contents, parent, flagInLoop=None):
         """Creates a new CodeLine object.
         id is the line number in the function.
         type can be: start, io, if, else, for, while, misc
@@ -15,7 +51,11 @@ class CodeLine:
         self.id = int(id)               # Line number
         self.contents = str(contents.strip())
 
-        self.flagInLoop = flagInLoop     # are we in a if loop - need to give options of if and no else.
+        if flagInLoop is None:
+            self.flagInLoop = {}     # are we in a if loop - need to give options of if and no else.
+        else:
+            self.flagInLoop = flagInLoop
+
         self.type = self.getType()
         # We want to check if the parent was a if loop
 
@@ -279,7 +319,7 @@ def visualize(function, quiet=True):
             boxes[i+1].childOfIf = 'True'
             length_if = findEndOfNest(raw_code, i)
 
-            #print(boxes[16].contents) 
+            #print(boxes[16].contents)
             #print(boxes[16].flagInLoop)
 
             if boxes[i].flagInLoop.get('for') is not None and box.flagInLoop.get('for', None) is not 'head':
@@ -303,8 +343,7 @@ def visualize(function, quiet=True):
                         boxes[i + length_if - 1].children = [boxes[retBox]]
                     else:
                         boxes[i + length_if - 1].children = [boxes[i + length_if + length_else]]
-
-                    #boxes[i + length_if + length_else].children[0].offset = (-5, length_else - length_if - 1)
+                    boxes[i + length_if + length_else].children[0].offset = (-5, length_else - length_if - 1)
 
                     # Set parent of box after else to if box
                     boxes[i + length_if + 1].parent = boxes[i]
@@ -355,3 +394,4 @@ def visualize(function, quiet=True):
             os.system('start sometexfile.pdf')
 
 
+visualize(fib)
