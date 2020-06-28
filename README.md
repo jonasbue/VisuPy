@@ -10,7 +10,9 @@ To run VisuPy, be sure to have LaTeX installed.
 Then, in your Python script, run the following to visualize your function in a LaTeX flowchart:
 
 import visupy
+def foo:
+...
 
-visupy.visualize(function, 'filename')
+visupy.visualize(foo, 'filename')
 
 Examples are found in the test_functions.py file.
