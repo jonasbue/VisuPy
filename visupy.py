@@ -4,42 +4,6 @@ import subprocess, os
 from sys import platform
 
 
-def test():
-    x = 1
-    if x == 1:
-        y = 4
-        z = x + y
-    else:
-        y = 0
-        z = 0
-    z = z ** 2
-    if y == 2:
-        print('y is 2')
-    print('The end')
-    for i in range(2):
-        print("hi")
-        x = 4
-    x = 3
-
-    if z == 3:
-        print("oh no")
-        print("1")
-    else:
-        print("oops")
-
-    print('end')
-
-def fib(n):
-    l = []
-    for i in range(n):
-        if len(l) == 0 or len(l) == 1:
-            l.append(1)
-        else:
-            l.append(l[i-1]+ l[i-2])
-            print('hello')
-    print(l)
-
-
 class CodeLine:
     def __init__(self, id, contents, parent, flagInLoop=None):
         """Creates a new CodeLine object.
@@ -76,15 +40,6 @@ class CodeLine:
         if self.parent != self:
             self.parent.children.append(self)
             self.parent.num_children += 1
-        '''
-        # Also check if we are in a if path
-        if self.parent.flagInLoop:
-            flagInLoop = self.parent.flagInLoop 
-            if flagInLoop.get('if') == 'start' or flagInLoop.get('if') == 'body':
-                self.flagInLoop.update({'if': 'body'})
-            elif flagInLoop.get('if') == 'final':
-                self.flagInLoop = dict()
-        '''
 
     def getType(self):
         if self.contents.find("if") == 0 and self.contents[-1] == ":":
@@ -94,7 +49,6 @@ class CodeLine:
             return "while"
         elif self.contents.find("for") == 0 and self.contents[-1] == ":":
             self.flagInLoop.update({'for':'head'})
-            print(self.contents)
             return "for"
         elif self.contents == "else:":
             return "else"
@@ -226,8 +180,8 @@ def placeForLoop(boxes, function):
             drawFeedback(boxes[i], boxes, function)
             drawExit(boxes[i], boxes, function)
 
-def write_latex(code):
-    with open('sometexfile.tex', 'w') as f:
+def write_latex(code, filename):
+    with open(filename+'.tex', 'w') as f:
         f.write('\\documentclass{article}\n \\usepackage[a3paper]{geometry}\n\\pagestyle{empty}\n')
         f.write('\\usepackage{tikz}\n \\usetikzlibrary{shapes.geometric, arrows,arrows.meta, positioning, fit}\n')
 
@@ -259,7 +213,7 @@ def printOGCode(code):
 
 
 
-def visualize(function, quiet=True):
+def visualize(function, filename='visualize', quiet=True):
     boxes = []
     raw_code = inspect.getsourcelines(function)[0]
     printOGCode(inspect.getsource(function))
@@ -276,7 +230,7 @@ def visualize(function, quiet=True):
             parent = boxes[i - 1]       # This assigns every line the parent of the line before it
                                         # Parfunctionents are changed later on when constructs like loops/ifs are encountered
         boxes.append(CodeLine(i, line, parent))
-
+    print('')
     boxes[0].type = "start"
 
 
@@ -284,11 +238,6 @@ def visualize(function, quiet=True):
 
     else_box_indexes = []
     for i, box in enumerate(boxes):
-        '''
-        print('000000')
-        print(box.flagInLoop.get('for'))
-        print(box.contents)
-'''
         # Line must know they are in a for loop
         # After for loop circle back to for init and exit
 
@@ -296,12 +245,10 @@ def visualize(function, quiet=True):
         if box.type=='for':
 
             length_for = findEndOfNest(raw_code, i)  # line in for loop inc. def.
-            #print(box.contents)
-            print(length_for)
             # for lines in for loop (exc. def)
             for frline in range(i,  length_for+i):
                 boxes[frline].flagInLoop.update({'for':i})
-                #print(boxes[frline].contents)
+
             # so frline+1 should be where we exit the for loop
             boxes[frline+1].parent = boxes[i]
             boxes[i].makeChild()
@@ -319,15 +266,9 @@ def visualize(function, quiet=True):
             boxes[i+1].childOfIf = 'True'
             length_if = findEndOfNest(raw_code, i)
 
-            #print(boxes[16].contents)
-            #print(boxes[16].flagInLoop)
 
             if boxes[i].flagInLoop.get('for') is not None and box.flagInLoop.get('for', None) is not 'head':
                 retBox = box.flagInLoop.get('for')
-                print(box.type)
-                '''print(retBox)
-                print('LLLL')
-                print(i)'''
             else:
                 retBox = None  
             try:
@@ -343,7 +284,7 @@ def visualize(function, quiet=True):
                         boxes[i + length_if - 1].children = [boxes[retBox]]
                     else:
                         boxes[i + length_if - 1].children = [boxes[i + length_if + length_else]]
-                    boxes[i + length_if + length_else].children[0].offset = (-5, length_else - length_if - 1)
+                    boxes[i + length_if + length_else -1].children[0].offset = (-5, 2*(length_else - length_if - 1))
 
                     # Set parent of box after else to if box
                     boxes[i + length_if + 1].parent = boxes[i]
@@ -362,7 +303,7 @@ def visualize(function, quiet=True):
                     
                     boxes[i+length_if].childOfIf = 'False'
             except IndexError:
-                pass
+                print('IndexError')
 
     # D
     boxes = [box for i, box in enumerate(boxes) if i not in else_box_indexes]
@@ -375,23 +316,23 @@ def visualize(function, quiet=True):
     for box in boxes:
         string += box.drawArrows()
 
-    write_latex(string)
-    s= "pdflatex ./sometexfile.tex"
+    write_latex(string, filename)
+    s= "pdflatex ./"+filename+".tex"
     if quiet == True:
-        s = "pdflatex -interaction=batchmode  ./sometexfile.tex"
+        s = "pdflatex -interaction=batchmode  ./"+filename+".tex"
     x = os.system(s)
     if x != 0:
         print('Exit-code not 0, check result!')
     else:
+        ps = filename+'.pdf'
         if platform == "linux" or platform == "linux2":
-            os.system('xdg-open sometexfile.pdf')
+            os.system('xdg-open ' + ps)
 
         elif platform == "darwin":
-            #os.system('open sometexfile.tex')
-            os.system('open sometexfile.pdf')
+            os.system('open '+ ps)
 
         elif platform == 'win32':
-            os.system('start sometexfile.pdf')
+            os.system('start ' + ps)
 
 
-visualize(fib)
+

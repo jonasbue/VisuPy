@@ -1,23 +1,6 @@
-import visupy2pm
+import visupy
 
-
-
-def test1():
-    x = 1
-    if x==1:
-        print("hei")
-    else:
-        print("ha det bra")
-    for i in range(3):
-        y += x
-    z = x + y
-    if 3==4:
-        x,y = y,x
-    else:
-        x += 1
-    y -= 2
-
-def test():
+def hardFunc():
     x = 1
     if x == 1:
         y = 4
@@ -43,7 +26,7 @@ def test():
     print('end')
 
 
-def test3():
+def basicFunc():
     x = 2
     if x == 2:
         print(x)
@@ -60,4 +43,8 @@ def fib(n):
             print('hello')
     print(l)
 
-visupy2pm.visualize(test1)
+
+visupy.visualize(basicFunc, 'basic')
+visupy.visualize(fib, 'fib')
+visupy.visualize(hardFunc, 'hard')
+
