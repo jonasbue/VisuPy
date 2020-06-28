@@ -19,7 +19,7 @@ def fibonacci(n):
         else:
             a = L[i-1]
             b = L[i-2]
-            L.append(a - b)
+            L.append(a + b)
     return L
 
 
